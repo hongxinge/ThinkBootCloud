@@ -1,0 +1,40 @@
+# Nacos Configuration Example
+# Spring Cloud 2023.x (bootstrap.yml not required)
+
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: true
+        server-addr: 127.0.0.1:8848
+        namespace: dev
+        group: THINK_BOOT_GROUP
+        metadata:
+          version: ${thinkboot.nacos.version:1.0.0}
+          description: ${thinkboot.nacos.description:ThinkBoot Application}
+        heartbeat-interval: 5000
+        ip: ${spring.cloud.client.ip-address:}
+        port: ${server.port:8080}
+        weight: 1.0
+        cluster-name: DEFAULT
+        ephemeral: true
+
+      config:
+        enabled: true
+        server-addr: ${spring.cloud.nacos.discovery.server-addr}
+        namespace: ${spring.cloud.nacos.discovery.namespace}
+        group: THINK_BOOT_GROUP
+        file-extension: yaml
+        refresh-enabled: true
+        extension-configs:
+          - data-id: common.yaml
+            group: THINK_BOOT_GROUP
+            refresh: true
+
+# Custom ThinkBoot Nacos Properties
+thinkboot:
+  nacos:
+    version: 1.0.0
+    description: ThinkBoot Application
+    metadata:
+      region: default

@@ -1,0 +1,82 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: think-boot-gateway
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: DEFAULT_GROUP
+
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+          lower-case-service-id: true
+
+      routes:
+        - id: think-boot-auth
+          uri: lb://think-boot-auth
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+
+        - id: think-boot-system
+          uri: lb://think-boot-system
+          predicates:
+            - Path=/api/system/**
+          filters:
+            - StripPrefix=1
+
+        - id: think-boot-user
+          uri: lb://think-boot-user
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1
+
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+
+thinkboot:
+  gateway:
+    skip-auth-paths:
+      - /api/auth/login
+      - /api/auth/register
+      - /api/auth/refresh
+      - /api/public/**
+      - /actuator/**
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-resources/**
+
+    cors-allowed-origins:
+      - http://localhost:3000
+      - http://localhost:8080
+      - http://127.0.0.1:3000
+      - http://127.0.0.1:8080
+
+    rate-limit-enable: false
+
+  auth:
+    jwt:
+      secret: ${JWT_SECRET:thinkboot-auth-default-secret-key-must-be-at-least-256-bits}
+      expiration: ${JWT_EXPIRATION:7200000}
+      refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+logging:
+  level:
+    com.thinkboot.gateway: debug
+    org.springframework.cloud.gateway: info

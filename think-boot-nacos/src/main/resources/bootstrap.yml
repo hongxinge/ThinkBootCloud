@@ -1,0 +1,24 @@
+# Bootstrap Configuration for Nacos
+# Required only if using Spring Cloud Bootstrap (legacy mode)
+# For Spring Cloud 2023.x, use application.yml instead
+
+# Add dependency to enable bootstrap.yml support:
+# <dependency>
+#   <groupId>org.springframework.cloud</groupId>
+#   <artifactId>spring-cloud-starter-bootstrap</artifactId>
+# </dependency>
+
+# spring:
+#   cloud:
+#     nacos:
+#       discovery:
+#         server-addr: 127.0.0.1:8848
+#         namespace: dev
+#         group: THINK_BOOT_GROUP
+#       config:
+#         server-addr: 127.0.0.1:8848
+#         namespace: dev
+#         group: THINK_BOOT_GROUP
+#         file-extension: yaml
+#         prefix: ${spring.application.name}
+#         refresh-enabled: true

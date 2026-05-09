@@ -1,0 +1,2 @@
+com.thinkboot.redis.config.RedisConfig
+com.thinkboot.redis.config.RedissonConfig
