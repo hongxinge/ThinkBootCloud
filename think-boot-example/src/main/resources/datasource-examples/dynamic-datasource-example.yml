@@ -1,0 +1,109 @@
+# ============================================================
+# 多数据源配置示例（分库/按业务分离）
+# ============================================================
+# 适用于多业务库场景，如：用户库、订单库、日志库分离
+#
+# 使用前准备：
+# 1. 注释掉 application.yml 中的单数据源配置
+# 2. 将本文件内容复制到 application.yml 中
+# 3. 添加 dynamic-datasource 依赖到 pom.xml
+#
+# 依赖添加（在 pom.xml 的 dependencies 中添加）：
+# <dependency>
+#     <groupId>com.baomidou</groupId>
+#     <artifactId>dynamic-datasource-spring-boot3-starter</artifactId>
+#     <version>4.3.0</version>
+# </dependency>
+#
+# 使用方式：
+# 默认使用主数据源，在方法/类上添加 @DS("datasource_name") 切换数据源
+
+spring:
+  datasource:
+    dynamic:
+      primary: user_db         # 默认数据源
+      strict: false
+      
+      datasource:
+        # 用户数据库
+        user_db:
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://192.168.1.100:3306/db_user?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+          username: root
+          password: your_user_db_password
+          druid:
+            initial-size: 5
+            min-idle: 5
+            max-active: 20
+        
+        # 订单数据库
+        order_db:
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://192.168.1.101:3306/db_order?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+          username: root
+          password: your_order_db_password
+          druid:
+            initial-size: 10
+            min-idle: 10
+            max-active: 50
+        
+        # 日志/统计数据库
+        log_db:
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://192.168.1.102:3306/db_log?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+          username: root
+          password: your_log_db_password
+          druid:
+            initial-size: 3
+            min-idle: 3
+            max-active: 10
+
+# ============================================================
+# 代码使用示例
+# ============================================================
+# 
+# 1. 默认使用 user_db（无需注解）
+# 
+# @Service
+# public class UserServiceImpl extends BaseServiceImpl<UserMapper, User> {
+#     public User getUser(Long id) {
+#         return this.getById(id);  // 使用 user_db
+#     }
+# }
+#
+# 2. 指定使用 order_db
+#
+# import com.baomidou.dynamic.datasource.annotation.DS;
+#
+# @Service
+# @DS("order_db")                    // 类级别：整个类使用 order_db
+# public class OrderServiceImpl extends BaseServiceImpl<OrderMapper, Order> {
+#     
+#     public Order createOrder(Order order) {
+#         this.save(order);           // 使用 order_db
+#         return order;
+#     }
+# }
+#
+# 3. 方法级别切换数据源
+#
+# @Service
+# public class ReportService {
+#     
+#     // 从日志库查询统计数据
+#     @DS("log_db")
+#     public Map<String, Object> getStatistics() {
+#         // 查询 log_db 中的数据
+#     }
+#     
+#     // 从订单库查询订单详情
+#     @DS("order_db")
+#     public Order getOrderDetail(Long orderId) {
+#         // 查询 order_db 中的数据
+#     }
+# }
+#
+# 4. 跨库事务注意事项：
+#    - 跨数据源无法使用本地事务
+#    - 需要使用分布式事务（如 Seata）
+#    - 建议避免跨库事务，使用消息队列等方式异步处理

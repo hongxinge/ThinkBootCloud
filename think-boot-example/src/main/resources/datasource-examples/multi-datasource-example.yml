@@ -1,0 +1,100 @@
+# ============================================================
+# 多数据源配置示例（读写分离）
+# ============================================================
+# 适用于读写分离场景，一个主库（写）+ 多个从库（读）
+#
+# 使用前准备：
+# 1. 注释掉 application.yml 中的单数据源配置
+# 2. 将本文件内容复制到 application.yml 中
+# 3. 添加 dynamic-datasource 依赖到 pom.xml
+#
+# 依赖添加（在 pom.xml 的 dependencies 中添加）：
+# <dependency>
+#     <groupId>com.baomidou</groupId>
+#     <artifactId>dynamic-datasource-spring-boot3-starter</artifactId>
+#     <version>4.3.0</version>
+# </dependency>
+#
+# 使用方式：
+# 默认使用主库（master），在方法上添加 @DS("slave_x") 切换数据源
+
+spring:
+  datasource:
+    dynamic:
+      primary: master          # 默认数据源（写库）
+      strict: false            # 严格模式：false-未匹配数据源时使用默认，true-抛出异常
+      
+      datasource:
+        # 主库（写操作）
+        master:
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://192.168.1.100:3306/db_master?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+          username: root
+          password: your_master_password
+          druid:
+            initial-size: 5
+            min-idle: 5
+            max-active: 20
+        
+        # 从库1（读操作）
+        slave_1:
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://192.168.1.101:3306/db_slave1?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+          username: root
+          password: your_slave1_password
+          druid:
+            initial-size: 10
+            min-idle: 10
+            max-active: 30
+        
+        # 从库2（读操作，可选）
+        slave_2:
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://192.168.1.102:3306/db_slave2?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+          username: root
+          password: your_slave2_password
+          druid:
+            initial-size: 10
+            min-idle: 10
+            max-active: 30
+
+# ============================================================
+# 代码使用示例
+# ============================================================
+# 
+# 1. 默认使用 master（写操作）- 无需添加任何注解
+# 
+# @Service
+# public class UserServiceImpl extends BaseServiceImpl<UserMapper, User> {
+#     public void createUser(User user) {
+#         this.save(user);  // 自动使用 master 数据源
+#     }
+# }
+#
+# 2. 指定使用 slave 数据源（读操作）- 添加 @DS 注解
+#
+# import com.baomidou.dynamic.datasource.annotation.DS;
+#
+# @Service
+# public class UserServiceImpl extends BaseServiceImpl<UserMapper, User> {
+#     
+#     // 使用从库1读取数据
+#     @DS("slave_1")
+#     public User getUserById(Long id) {
+#         return this.getById(id);
+#     }
+#     
+#     // 使用从库2读取数据
+#     @DS("slave_2")
+#     public List<User> listAll() {
+#         return this.list();
+#     }
+#     
+#     // 类级别注解：整个类使用指定数据源
+#     // @DS("slave_1")
+#     // public class UserQueryService { ... }
+# }
+#
+# 3. 事务注意事项：
+#    - 同一个事务中只能使用一个数据源
+#    - 读写分离场景下，读操作不需要事务
