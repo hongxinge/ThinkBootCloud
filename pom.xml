@@ -17,6 +17,7 @@
         <module>think-boot-auth</module>
         <module>think-boot-feign</module>
         <module>think-boot-sentinel</module>
+        <module>think-boot-file</module>
         <module>think-boot-gateway</module>
         <module>think-boot-nacos</module>
         <module>think-boot-mybatis</module>
@@ -98,6 +99,11 @@
             <dependency>
                 <groupId>com.thinkboot</groupId>
                 <artifactId>think-boot-sentinel</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.thinkboot</groupId>
+                <artifactId>think-boot-file</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

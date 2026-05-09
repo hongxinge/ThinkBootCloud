@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.thinkboot</groupId>
+        <artifactId>think-boot-cloud</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>think-boot-file</artifactId>
+    <packaging>jar</packaging>
+    <name>think-boot-file</name>
+    <description>File upload module with local and OSS support</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.thinkboot</groupId>
+            <artifactId>think-boot-common</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+        </dependency>
+
+        <!-- Aliyun OSS (optional) -->
+        <dependency>
+            <groupId>com.aliyun.oss</groupId>
+            <artifactId>aliyun-sdk-oss</artifactId>
+            <version>3.17.4</version>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+</project>
