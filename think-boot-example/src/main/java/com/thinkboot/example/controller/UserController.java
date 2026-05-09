@@ -1,6 +1,6 @@
 package com.thinkboot.example.controller;
 
-import com.thinkboot.auth.annotation.RequireLogin;
+import com.thinkboot.auth.annotation.NoLogin;
 import com.thinkboot.common.result.R;
 import com.thinkboot.example.model.dto.UserDTO;
 import com.thinkboot.example.model.entity.User;
@@ -24,14 +24,12 @@ public class UserController {
     }
 
     @Operation(summary = "Get all users")
-    @RequireLogin
     @GetMapping
     public R<List<User>> list() {
         return R.success(userService.list());
     }
 
     @Operation(summary = "Get user by ID")
-    @RequireLogin
     @GetMapping("/{id}")
     public R<User> getById(@PathVariable Long id) {
         User user = userService.getById(id);
@@ -51,7 +49,6 @@ public class UserController {
     }
 
     @Operation(summary = "Update user")
-    @RequireLogin
     @PutMapping("/{id}")
     public R<Void> update(@PathVariable Long id, @RequestBody UserDTO dto) {
         User user = userService.getById(id);
@@ -65,7 +62,6 @@ public class UserController {
     }
 
     @Operation(summary = "Delete user")
-    @RequireLogin
     @DeleteMapping("/{id}")
     public R<Void> delete(@PathVariable Long id) {
         userService.removeById(id);
