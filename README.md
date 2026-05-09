@@ -769,6 +769,90 @@ thinkboot:
 
 ---
 
+## 💾 数据源配置
+
+框架默认使用**单数据源**配置（满足 90%+ 的项目需求）。如需使用多数据源（读写分离、分库），框架提供了完整的示例配置。
+
+### 单数据源（默认）
+
+在 `application.yml` 中配置即可：
+
+```yaml
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/your_db
+    username: root
+    password: your_password
+```
+
+### 多数据源（读写分离）
+
+框架提供了现成的示例配置文件，位于：
+
+```
+think-boot-example/src/main/resources/datasource-examples/
+├── single-datasource-example.yml      # 单数据源示例
+├── multi-datasource-example.yml       # 读写分离示例
+└── dynamic-datasource-example.yml     # 分库示例
+```
+
+**使用步骤：**
+
+1. 在 `pom.xml` 中添加依赖：
+
+```xml
+<dependency>
+    <groupId>com.baomidou</groupId>
+    <artifactId>dynamic-datasource-spring-boot3-starter</artifactId>
+    <version>4.3.0</version>
+</dependency>
+```
+
+2. 将 `multi-datasource-example.yml` 中的配置复制到 `application.yml`
+
+3. 在代码中使用 `@DS` 注解切换数据源：
+
+```java
+@Service
+public class UserServiceImpl extends BaseServiceImpl<UserMapper, User> {
+    
+    // 默认使用主库（写操作）
+    public void createUser(User user) {
+        this.save(user);
+    }
+    
+    // 使用从库（读操作）
+    @DS("slave_1")
+    public User getUserById(Long id) {
+        return this.getById(id);
+    }
+}
+```
+
+### 分库配置（按业务分离）
+
+参考 `dynamic-datasource-example.yml`，适用于用户库、订单库、日志库分离的场景：
+
+```java
+@Service
+@DS("order_db")                    // 整个类使用订单库
+public class OrderServiceImpl extends BaseServiceImpl<OrderMapper, Order> {
+    public Order createOrder(Order order) {
+        this.save(order);          // 使用 order_db
+        return order;
+    }
+}
+```
+
+> **注意事项：**
+> - 同一事务中只能使用一个数据源
+> - 跨数据源无法使用本地事务，需要使用分布式事务（如 Seata）
+> - 建议避免跨库事务，使用消息队列等方式异步处理
+
+---
+
 ## 📝 项目结构建议
 
 ```
