@@ -1,6 +1,6 @@
 package com.thinkboot.example.controller;
 
-import com.thinkboot.auth.annotation.NoLogin;
+import com.thinkboot.auth.annotation.IgnoreAuth;
 import com.thinkboot.common.result.R;
 import com.thinkboot.example.model.dto.UserDTO;
 import com.thinkboot.example.model.entity.User;
@@ -66,5 +66,13 @@ public class UserController {
     public R<Void> delete(@PathVariable Long id) {
         userService.removeById(id);
         return R.success();
+    }
+
+    // 不需要登录（使用 @IgnoreAuth 注解）
+    @IgnoreAuth
+    @Operation(summary = "Get public info")
+    @GetMapping("/public/info")
+    public R<String> publicInfo() {
+        return R.success("Public Info");
     }
 }

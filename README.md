@@ -1,4 +1,4 @@
-# ThinkBootCloud
+﻿# ThinkBootCloud
 
 > 🚀 轻量级微服务开发框架，专为C端客户端场景设计
 
@@ -20,7 +20,7 @@ ThinkBootCloud 是一款基于 Spring Cloud Alibaba + Spring Boot 3 的轻量级
 - **轻量灵活**：模块化设计，按需引入，不臃肿
 - **约定优于配置**：提供合理默认值，减少配置工作量
 - **开发者友好**：统一响应格式、全局异常处理、自动装配
-- **完全免费**：MIT 协议，无任何限制，可自由商用
+- **安全优先**：默认所有接口需要认证，明确标记才放行
 
 ---
 
@@ -68,7 +68,7 @@ think-boot-cloud/
 |------|------|----------|
 | **think-boot-common** | 公共基础模块 | 统一响应R、分页支持、业务异常、全局异常处理 |
 | **think-boot-core** | 核心配置模块 | CORS配置、Jackson时间序列化、请求日志 |
-| **think-boot-auth** | 认证模块 | JWT Token生成/验证、@RequireLogin注解、拦截器、UserContext |
+| **think-boot-auth** | 认证模块 | JWT Token生成/验证、@IgnoreAuth注解、拦截器、UserContext |
 | **think-boot-feign** | 服务通信模块 | OpenFeign集成、Token自动传递、全局日志 |
 | **think-boot-sentinel** | 限流熔断模块 | Sentinel集成、自定义限流响应、Nacos规则源 |
 | **think-boot-gateway** | API网关模块 | 网关路由、Token验证、CORS、全局错误处理 |
@@ -197,7 +197,7 @@ thinkboot:
       expiration: 7200000
       # 刷新Token有效期（默认7天）
       refresh-expiration: 604800000
-      # 不需要Token验证的路径
+      # 不需要Token验证的路径（白名单）
       skip-paths:
         - /api/auth/login
         - /api/auth/register
@@ -302,7 +302,7 @@ public class UserServiceImpl extends BaseServiceImpl<UserMapper, User> implement
 ```java
 package com.yourcompany.yourproject.controller;
 
-import com.thinkboot.auth.annotation.RequireLogin;
+import com.thinkboot.auth.annotation.IgnoreAuth;
 import com.thinkboot.auth.context.UserContext;
 import com.thinkboot.common.result.R;
 import com.yourcompany.yourproject.model.entity.User;
@@ -319,8 +319,7 @@ public class UserController {
         this.userService = userService;
     }
 
-    // 需要登录才能访问（添加 @RequireLogin 注解）
-    @RequireLogin
+    // 默认需要登录（无需添加任何注解）
     @GetMapping("/{id}")
     public R<User> getById(@PathVariable Long id) {
         User user = userService.getById(id);
@@ -330,14 +329,14 @@ public class UserController {
         return R.success(user);
     }
 
-    // 不需要登录即可访问（不添加 @RequireLogin 注解）
+    // 不需要登录（使用 @IgnoreAuth 注解）
+    @IgnoreAuth
     @GetMapping("/public/info")
     public R<String> publicInfo() {
         return R.success("这是公开信息");
     }
 
-    // 获取当前登录用户
-    @RequireLogin
+    // 获取当前登录用户（默认需要登录）
     @GetMapping("/me")
     public R<String> getCurrentUser() {
         String userId = UserContext.getCurrentUserId();
@@ -398,7 +397,6 @@ return R.error("服务器异常");
 
 ```java
 @GetMapping("/list")
-@RequireLogin
 public PageResponse<User> list(@RequestParam(defaultValue = "1") int pageNo,
                                 @RequestParam(defaultValue = "10") int pageSize) {
     // 创建分页对象
@@ -433,31 +431,86 @@ public PageResponse<User> list(@RequestParam(defaultValue = "1") int pageNo,
 
 ### Token 认证
 
-#### 登录获取 Token
+**重要：框架默认所有接口都需要 Token 验证**，只有以下两种情况会放行：
+
+#### 方式一：配置免认证路径（推荐批量管理）
+
+在 `application.yml` 中配置不需要 Token 验证的路径：
+
+```yaml
+thinkboot:
+  auth:
+    jwt:
+      skip-paths:
+        - /api/auth/login          # 登录接口
+        - /api/auth/register       # 注册接口
+        - /api/auth/refresh-token  # 刷新Token接口
+        - /api/public/**           # 所有公开接口
+        - /doc.html
+        - /swagger-resources/**
+        - /v3/api-docs/**
+```
+
+#### 方式二：使用 @IgnoreAuth 注解（推荐单个接口）
+
+在方法或类上添加 `@IgnoreAuth` 注解，标记该接口不需要认证：
 
 ```java
-@PostMapping("/api/auth/login")
-public R<LoginResponse> login(@RequestBody LoginRequest request) {
-    // 验证用户名密码
-    User user = userService.getByUsername(request.getUsername());
-    if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-        return R.error(401, "用户名或密码错误");
+@RestController
+@RequestMapping("/api/auth")
+public class AuthController {
+
+    // 免认证 - 单个接口
+    @IgnoreAuth
+    @PostMapping("/login")
+    public R<LoginResponse> login(@RequestBody LoginRequest request) {
+        // 验证用户名密码
+        User user = userService.getByUsername(request.getUsername());
+        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            return R.error(401, "用户名或密码错误");
+        }
+
+        // 生成 Token
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("username", user.getUsername());
+        
+        String token = jwtUtils.generateToken(user.getId().toString(), claims);
+        String refreshToken = jwtUtils.generateRefreshToken(user.getId().toString(), claims);
+
+        LoginResponse response = new LoginResponse();
+        response.setToken(token);
+        response.setRefreshToken(refreshToken);
+        response.setUserId(user.getId().toString());
+        response.setExpireTime(7200L);
+
+        return R.success(response);
     }
 
-    // 生成 Token
-    Map<String, Object> claims = new HashMap<>();
-    claims.put("username", user.getUsername());
-    
-    String token = jwtUtils.generateToken(user.getId().toString(), claims);
-    String refreshToken = jwtUtils.generateRefreshToken(user.getId().toString(), claims);
+    // 免认证 - 整个类所有接口
+    @IgnoreAuth
+    @PostMapping("/register")
+    public R<Void> register(@RequestBody LoginRequest request) { ... }
+}
+```
 
-    LoginResponse response = new LoginResponse();
-    response.setToken(token);
-    response.setRefreshToken(refreshToken);
-    response.setUserId(user.getId().toString());
-    response.setExpireTime(7200L);
+#### 认证接口（默认行为）
 
-    return R.success(response);
+**不需要添加任何注解**，框架默认所有接口都需要认证：
+
+```java
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    // 默认需要认证 - 无需添加任何注解
+    @GetMapping("/{id}")
+    public R<User> getById(@PathVariable Long id) {
+        return R.success(userService.getById(id));
+    }
+
+    // 默认需要认证
+    @PostMapping
+    public R<Void> create(@RequestBody UserDTO dto) { ... }
 }
 ```
 
@@ -468,21 +521,19 @@ GET /api/users/1
 Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 ```
 
-#### 配置免认证路径
+#### 获取当前登录用户
 
-在 `application.yml` 中配置不需要 Token 验证的路径：
-
-```yaml
-thinkboot:
-  auth:
-    jwt:
-      skip-paths:
-        - /api/auth/login
-        - /api/auth/register
-        - /api/public/**
-        - /doc.html
-        - /swagger-resources/**
-        - /v3/api-docs/**
+```java
+// 获取当前登录用户（默认需要认证，无需添加注解）
+@GetMapping("/me")
+public R<String> getCurrentUser() {
+    // 获取当前用户ID
+    String userId = UserContext.getCurrentUserId();
+    
+    // 根据userId查询完整用户信息
+    User user = userService.getById(Long.valueOf(userId));
+    return R.success(user);
+}
 ```
 
 ### OpenFeign 服务间调用
@@ -519,7 +570,6 @@ public class OrderController {
     }
     
     @GetMapping("/{id}")
-    @RequireLogin
     public R<Order> getOrder(@PathVariable Long id) {
         // Token 会自动传递到 user-service
         R<User> userResult = userFeignClient.getUserById(1L);
@@ -769,7 +819,9 @@ System.out.println(base64Key);
 
 ### Q2: 如何关闭某个接口的Token验证？
 
-不添加 `@RequireLogin` 注解即可。或者在配置文件的 `skip-paths` 中添加路径：
+有两种方式：
+
+**方式1**：在配置文件的 `skip-paths` 中添加路径：
 
 ```yaml
 thinkboot:
@@ -777,6 +829,16 @@ thinkboot:
     jwt:
       skip-paths:
         - /api/users/public/**
+```
+
+**方式2**：在方法或类上添加 `@IgnoreAuth` 注解：
+
+```java
+@IgnoreAuth
+@GetMapping("/public/info")
+public R<String> publicInfo() {
+    return R.success("这是公开信息");
+}
 ```
 
 ### Q3: 如何自定义分页大小限制？
@@ -813,7 +875,7 @@ spring:
 ### Q5: 如何获取当前登录用户信息？
 
 ```java
-@RequireLogin
+// 获取当前登录用户（默认需要认证，无需添加注解）
 @GetMapping("/me")
 public R<String> getCurrentUser() {
     // 获取当前用户ID

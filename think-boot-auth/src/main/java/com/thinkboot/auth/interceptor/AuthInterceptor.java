@@ -1,6 +1,6 @@
 package com.thinkboot.auth.interceptor;
 
-import com.thinkboot.auth.annotation.NoLogin;
+import com.thinkboot.auth.annotation.IgnoreAuth;
 import com.thinkboot.auth.config.JwtProperties;
 import com.thinkboot.auth.context.UserContext;
 import com.thinkboot.auth.util.JwtUtils;
@@ -18,7 +18,7 @@ import java.util.List;
  * 
  * 认证策略：默认所有接口都需要 Token 验证，只有以下情况放行：
  * 1. 路径匹配 skip-paths 配置
- * 2. 方法或类上标记了 @NoLogin 注解
+ * 2. 方法或类上标记了 @IgnoreAuth 注解
  */
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
@@ -46,9 +46,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 检查2：方法或类上是否标记了 @NoLogin 注解
-        NoLogin methodAnnotation = handlerMethod.getMethodAnnotation(NoLogin.class);
-        NoLogin classAnnotation = handlerMethod.getBeanType().getAnnotation(NoLogin.class);
+        // 检查2：方法或类上是否标记了 @IgnoreAuth 注解
+        IgnoreAuth methodAnnotation = handlerMethod.getMethodAnnotation(IgnoreAuth.class);
+        IgnoreAuth classAnnotation = handlerMethod.getBeanType().getAnnotation(IgnoreAuth.class);
 
         if (methodAnnotation != null || classAnnotation != null) {
             return true;
