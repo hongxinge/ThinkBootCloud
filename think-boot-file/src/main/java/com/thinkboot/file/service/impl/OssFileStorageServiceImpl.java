@@ -14,6 +14,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -77,6 +78,13 @@ public class OssFileStorageServiceImpl implements FileStorageService {
         result.setType(extension);
         
         return result;
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        if (ossClient != null) {
+            ossClient.shutdown();
+        }
     }
 
     @Override

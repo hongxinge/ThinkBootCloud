@@ -77,7 +77,10 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
                     String userId = getUserId(token);
                     ServerWebExchange modifiedExchange = exchange.mutate()
                             .request(exchange.getRequest().mutate()
-                                    .header(USER_ID_HEADER, userId)
+                                    .headers(h -> {
+                                        h.remove(USER_ID_HEADER);
+                                        h.add(USER_ID_HEADER, userId);
+                                    })
                                     .build())
                             .build();
 
