@@ -55,6 +55,8 @@ think-boot-cloud/
 ├── think-boot-auth/                           # JWT认证模块
 ├── think-boot-feign/                          # OpenFeign集成模块
 ├── think-boot-sentinel/                       # Sentinel限流熔断模块
+├── think-boot-file/                           # 文件上传模块
+├── think-boot-codegen/                        # 代码生成器模块
 ├── think-boot-gateway/                        # API网关模块
 ├── think-boot-nacos/                          # Nacos注册配置模块
 ├── think-boot-mybatis/                        # MyBatis-Plus集成模块
@@ -75,6 +77,8 @@ think-boot-cloud/
 | **think-boot-nacos** | 服务注册模块 | Nacos服务发现、动态配置 |
 | **think-boot-mybatis** | 数据库模块 | MyBatis-Plus、BaseEntity、分页、自动填充 |
 | **think-boot-redis** | 缓存模块 | RedisTemplate封装、Redisson分布式锁 |
+| **think-boot-file** | 文件上传模块 | 本地存储、阿里云OSS、文件上传下载 |
+| **think-boot-codegen** | 代码生成器模块 | 基于数据库表自动生成CRUD代码 |
 | **think-boot-example** | 示例模块 | 完整演示框架用法 |
 
 ---
@@ -661,6 +665,111 @@ String result = DistributedLock.executeWithLock(
     TimeUnit.SECONDS
 );
 ```
+
+### 代码生成器
+
+框架提供了独立的代码生成器模块 `think-boot-codegen`，可以基于数据库表自动生成 Entity、Mapper、Service、ServiceImpl、Controller 等 CRUD 代码。
+
+#### 1. 引入依赖
+
+在你的项目中添加代码生成器模块依赖：
+
+```xml
+<dependency>
+    <groupId>com.thinkboot</groupId>
+    <artifactId>think-boot-codegen</artifactId>
+</dependency>
+```
+
+#### 2. 使用代码生成器
+
+创建代码生成器类并运行：
+
+```java
+package com.yourcompany.yourproject;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.thinkboot.codegen.ThinkBootCodeGenerator;
+
+public class CodeGenerator {
+
+    public static void main(String[] args) {
+        ThinkBootCodeGenerator generator = new ThinkBootCodeGenerator();
+        
+        generator.url("jdbc:mysql://localhost:3306/your_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai")
+                .username("root")
+                .password("your_password")
+                .tableName("tb_user", "tb_order")
+                .moduleName("system")
+                .author("YourName")
+                .outputPath("D:/project/your-project/src/main/java")
+                .parentPackage("com.yourcompany")
+                .useBaseEntity(true)
+                .useLogicDelete(true)
+                .logicDeleteField("deleted")
+                .idType(IdType.ASSIGN_ID)
+                .ignoreTablePrefix("tb_")
+                .generate();
+    }
+}
+```
+
+#### 3. 生成结果
+
+运行后会自动生成以下文件：
+
+```
+src/main/java/com/yourcompany/system/
+├── domain/entity/
+│   ├── User.java
+│   └── Order.java
+├── mapper/
+│   ├── UserMapper.java
+│   ├── OrderMapper.java
+│   └── xml/
+│       ├── UserMapper.xml
+│       └── OrderMapper.xml
+├── service/
+│   ├── UserService.java
+│   └── OrderService.java
+├── service/impl/
+│   ├── UserServiceImpl.java
+│   └── OrderServiceImpl.java
+└── controller/
+    ├── UserController.java
+    └── OrderController.java
+```
+
+#### 4. 常用配置项
+
+| 配置项 | 说明 | 默认值 |
+|--------|------|--------|
+| url | 数据库连接URL | jdbc:mysql://localhost:3306/thinkboot |
+| username | 数据库用户名 | root |
+| password | 数据库密码 | root |
+| tableName | 要生成的表名（支持多个） | 必填 |
+| moduleName | 模块名称（如system、order） | 空 |
+| author | 作者名 | thinkboot |
+| outputPath | 代码输出路径 | 当前目录/src/main/java |
+| parentPackage | 父包名 | com.thinkboot |
+| useBaseEntity | 是否继承BaseEntity | true |
+| useLogicDelete | 是否启用逻辑删除 | true |
+| ignoreTablePrefix | 忽略的表前缀 | tb_ |
+| idType | 主键类型 | ASSIGN_ID |
+
+#### 5. 选择性生成
+
+可以通过 `disable*` 方法控制生成哪些文件：
+
+```java
+generator.tableName("tb_user")
+         .disableController()
+         .disableService()
+         .disableServiceImpl()
+         .generate();
+```
+
+> **提示：** 生成代码后，请根据实际业务需求调整生成的代码，尤其是Controller中的接口逻辑。
 
 ---
 
