@@ -12,7 +12,7 @@ import java.util.List;
 @ConfigurationProperties(prefix = "thinkboot.auth.jwt")
 public class JwtProperties {
 
-    private String secret = "dGhpbmstYm9vdC1hdXRoLWp3dC1zZWNyZXQta2V5LW11c3QtYmUtYXQtbGVhc3QtMjU2LWJpdHM=";
+    private String secret;
 
     private long expiration = 7200000L;
 
@@ -23,7 +23,10 @@ public class JwtProperties {
     @PostConstruct
     public void validate() {
         if (secret == null || secret.trim().isEmpty()) {
-            throw new IllegalStateException("JWT Secret must not be empty. Please configure it in application.yml");
+            throw new IllegalStateException("JWT Secret must be configured in application.yml (thinkboot.auth.jwt.secret). Please generate a secure Base64-encoded 256-bit key.");
+        }
+        if (!secret.matches("^[A-Za-z0-9+/=]{32,}$")) {
+            throw new IllegalStateException("JWT Secret must be a valid Base64-encoded key of at least 32 characters. Please generate a secure key and configure it.");
         }
     }
 }

@@ -50,7 +50,7 @@ public class RabbitMessageSender {
                     routingKey,
                     message,
                     (MessagePostProcessor) msg -> {
-                        msg.getMessageProperties().setDelay((int) Math.min(delayMillis, Integer.MAX_VALUE));
+                        msg.getMessageProperties().setHeader("x-delay", (int) Math.min(delayMillis, Integer.MAX_VALUE));
                         return msg;
                     }
             );

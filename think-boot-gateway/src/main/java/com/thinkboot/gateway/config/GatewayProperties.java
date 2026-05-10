@@ -23,12 +23,15 @@ public class GatewayProperties {
 
     private int rateLimitWindow = 60;
 
-    private String jwtSecret = "dGhpbmstYm9vdC1nYXRld2F5LWp3dC1zZWNyZXQta2V5LW11c3QtYmUtYXQtbGVhc3QtMjU2LWJpdHM=";
+    private String jwtSecret;
 
     @PostConstruct
     public void validate() {
         if (jwtSecret == null || jwtSecret.trim().isEmpty()) {
-            throw new IllegalStateException("Gateway JWT Secret must not be empty. Please configure it in application.yml");
+            throw new IllegalStateException("Gateway JWT Secret must be configured in application.yml (thinkboot.gateway.jwt-secret). Please generate a secure Base64-encoded 256-bit key.");
+        }
+        if (!jwtSecret.matches("^[A-Za-z0-9+/=]{32,}$")) {
+            throw new IllegalStateException("Gateway JWT Secret must be a valid Base64-encoded key of at least 32 characters. Please generate a secure key and configure it.");
         }
     }
 }
