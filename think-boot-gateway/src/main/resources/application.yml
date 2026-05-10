@@ -74,7 +74,7 @@ thinkboot:
 
   auth:
     jwt:
-      secret: ${JWT_SECRET:thinkboot-auth-default-secret-key-must-be-at-least-256-bits}
+      secret: ${JWT_SECRET:dGhpbmstYm9vdC1nYXRld2F5LWF1dGgtand0LXNlY3JldC1rZXktbXVzdC1iZS1hdC1sZWFzdC0yNTYtYml0cw==}
       expiration: ${JWT_EXPIRATION:7200000}
       refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 

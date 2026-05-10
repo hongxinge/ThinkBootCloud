@@ -1,0 +1,12 @@
+# ThinkBoot Auth 默认配置
+# 此文件提供框架默认配置，开发者可在自己的 application.yml 中覆盖
+thinkboot:
+  auth:
+    jwt:
+      # JWT密钥（Base64编码，至少32位）
+      # 生产环境请通过环境变量 JWT_SECRET 覆盖
+      secret: ${JWT_SECRET:dGhpbmstYm9vdC1hdXRoLWp3dC1zZWNyZXQta2V5LW11c3QtYmUtYXQtbGVhc3QtMjU2LWJpdHM=}
+      # Token有效期（2小时）
+      expiration: ${JWT_EXPIRATION:7200000}
+      # 刷新Token有效期（7天）
+      refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
