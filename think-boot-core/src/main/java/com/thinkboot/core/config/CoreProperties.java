@@ -16,4 +16,5 @@ public class CoreProperties {
     private boolean xssFilterEnabled = false;
     private int maxUploadSize = 10;
     private boolean enableTraceId = true;
+    private boolean idempotentEnabled = true;
 }

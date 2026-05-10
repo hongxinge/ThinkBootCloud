@@ -1,0 +1,47 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  JAVA_HOME: "/usr/lib/jvm/java-17-openjdk"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .m2/repository
+
+build:
+  stage: build
+  image: maven:3.9-eclipse-temurin-17
+  script:
+    - mvn $MAVEN_OPTS clean package -DskipTests
+  artifacts:
+    paths:
+      - "**/target/*.jar"
+    expire_in: 1 week
+
+test:
+  stage: test
+  image: maven:3.9-eclipse-temurin-17
+  services:
+    - name: mysql:8.0
+      alias: mysql
+      variables:
+        MYSQL_ROOT_PASSWORD: root123
+    - name: redis:7-alpine
+      alias: redis
+  script:
+    - mvn $MAVEN_OPTS test
+  allow_failure: true
+
+deploy:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - echo "Add your deployment steps here"
+  environment:
+    name: production
+  only:
+    - main

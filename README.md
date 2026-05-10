@@ -51,6 +51,7 @@ think-boot-cloud/
 ├── pom.xml                                    # 父POM（统一版本管理）
 ├── LICENSE                                    # MIT 开源协议
 ├── README.md                                  # 使用文档
+├── templates/                                 # 部署模板目录
 ├── think-boot-common/                         # 公共模块
 ├── think-boot-core/                           # 核心模块（Web配置）
 ├── think-boot-auth/                           # JWT认证模块
@@ -817,6 +818,202 @@ public class OrderMessageConsumer {
 
 **总结：开发者只需关注第 4 步和第 5 步的业务逻辑，其他全部自动配置！**
 
+### 幂等性机制
+
+框架提供 `@Idempotent` 注解，基于 Redis + Token 机制自动防止接口重复提交。
+
+#### 1. 引入依赖
+
+在你的项目中添加公共模块依赖（已包含幂等性功能）：
+
+```xml
+<dependency>
+    <groupId>com.thinkboot</groupId>
+    <artifactId>think-boot-common</artifactId>
+</dependency>
+```
+
+#### 2. 前端获取 Token
+
+前端在提交表单前，先调用接口获取幂等 Token：
+
+```bash
+GET /api/idempotent/token
+```
+
+响应示例：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": "550e8400e29b41d4a716446655440000",
+  "timestamp": 1700000000000
+}
+```
+
+#### 3. 后端使用注解
+
+在需要防重复提交的接口上添加 `@Idempotent` 注解，并在请求头中携带 Token：
+
+```java
+import com.thinkboot.common.idempotent.Idempotent;
+
+@RestController
+@RequestMapping("/api/orders")
+public class OrderController {
+
+    // 防止订单重复提交
+    @Idempotent(key = "create_order", expire = 5, message = "订单正在处理中，请勿重复提交")
+    @PostMapping
+    public R<Order> createOrder(@RequestBody OrderDTO dto) {
+        Order order = orderService.createOrder(dto);
+        return R.success(order);
+    }
+}
+```
+
+前端请求示例：
+```bash
+POST /api/orders
+X-Idempotent-Token: 550e8400e29b41d4a716446655440000
+Content-Type: application/json
+
+{"productId": 1, "quantity": 2}
+```
+
+#### 4. 注解参数说明
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| key | String | "" | 业务键前缀，用于区分不同场景 |
+| expire | long | 5 | Token 过期时间（秒） |
+| message | String | "请勿重复提交" | 重复提交时的错误提示 |
+
+#### 5. 工作原理
+
+1. 前端调用 `GET /api/idempotent/token` 获取 Token（框架自动在 Redis 中创建，默认 5 秒过期）
+2. 前端携带 `X-Idempotent-Token` 请求头提交请求
+3. 拦截器检查 Redis 中该 Token 是否存在：
+   - 存在：删除 Token，放行请求
+   - 不存在：拦截请求，返回 "请勿重复提交"
+4. 重复提交时 Token 已被删除，自动拦截
+
+#### 6. 配置项
+
+```yaml
+thinkboot:
+  core:
+    idempotent-enabled: true  # 是否启用幂等性机制（默认 true）
+```
+
+### Feign Fallback 防级联失败
+
+框架提供 Fallback 示例，当服务调用失败时自动降级，防止级联雪崩。
+
+#### 1. 使用 FallbackFactory（推荐）
+
+```java
+import com.thinkboot.feign.fallback.ExampleFeignFallbackFactory;
+
+@FeignClient(
+    name = "user-service",
+    path = "/api/users",
+    fallbackFactory = UserFeignFallbackFactory.class
+)
+public interface UserFeignClient {
+    @GetMapping("/{id}")
+    R<User> getUserById(@PathVariable Long id);
+}
+
+@Component
+public class UserFeignFallbackFactory implements FallbackFactory<UserFeignClient> {
+    private static final Logger log = LoggerFactory.getLogger(UserFeignFallbackFactory.class);
+
+    @Override
+    public UserFeignClient create(Throwable cause) {
+        return new UserFeignClient() {
+            @Override
+            public R<User> getUserById(Long id) {
+                log.error("getUserById fallback, id={}, error={}", id, cause.getMessage());
+                return R.error(503, "用户服务暂时不可用");
+            }
+        };
+    }
+}
+```
+
+#### 2. 启用 Fallback 配置
+
+在 `application.yml` 中启用 Fallback：
+
+```yaml
+spring:
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+```
+
+#### 3. TraceId 自动传递
+
+框架已配置 Feign 请求拦截器，自动传递以下请求头：
+- `Authorization` - Token 认证
+- `X-User-Id` - 用户 ID
+- `X-Trace-Id` - 链路追踪 ID
+
+### 响应缓存
+
+框架基于 Spring Cache + Redis 提供声明式缓存。
+
+#### 1. 基本使用
+
+```java
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.CacheEvict;
+
+@Service
+public class ProductService {
+
+    // 查询时缓存结果
+    @Cacheable(value = "product", key = "#id", unless = "#result == null")
+    public Product getById(Long id) {
+        return productMapper.selectById(id);
+    }
+
+    // 更新时刷新缓存
+    @CachePut(value = "product", key = "#product.id")
+    public Product update(Product product) {
+        productMapper.updateById(product);
+        return product;
+    }
+
+    // 删除时清除缓存
+    @CacheEvict(value = "product", key = "#id")
+    public void delete(Long id) {
+        productMapper.deleteById(id);
+    }
+
+    // 批量清除缓存
+    @CacheEvict(value = "product", allEntries = true)
+    public void clearCache() {
+        // 清除 product 缓存下所有条目
+    }
+}
+```
+
+#### 2. 缓存注解说明
+
+| 注解 | 作用 | 适用场景 |
+|------|------|----------|
+| @Cacheable | 先查缓存，没有则执行方法并缓存 | 查询接口 |
+| @CachePut | 执行方法并更新缓存 | 更新接口 |
+| @CacheEvict | 执行方法并清除缓存 | 删除接口 |
+
+#### 3. 完整示例
+
+参考 `think-boot-redis` 模块中的 [CacheExampleService](file:///G:/ThinkBootCloud/think-boot-redis/src/main/java/com/thinkboot/redis/example/CacheExampleService.java) 文件。
+
 ---
 
 ### 代码生成器
@@ -1112,6 +1309,31 @@ public class OrderServiceImpl extends BaseServiceImpl<OrderMapper, Order> {
 > - 同一事务中只能使用一个数据源
 > - 跨数据源无法使用本地事务，需要使用分布式事务（如 Seata）
 > - 建议避免跨库事务，使用消息队列等方式异步处理
+
+---
+
+## 📋 部署模板
+
+框架提供开箱即用的部署模板，位于 `templates/` 目录，开发者可按需复制到项目中使用。
+
+### Docker Compose 一键部署
+
+```bash
+cd templates/docker
+cp .env.example .env  # 修改环境变量
+docker-compose up -d
+```
+
+包含服务：Nacos、MySQL、Redis、RabbitMQ、Gateway
+
+### CI/CD 配置
+
+- **GitHub Actions**: 复制 `templates/ci-cd/.github-workflows.yml` 到 `.github/workflows/`
+- **GitLab CI**: 复制 `templates/ci-cd/gitlab-ci.yml` 到项目根目录
+
+### Nginx 反向代理
+
+复制 `templates/nginx/gateway.conf` 到 Nginx 配置目录，修改域名和 SSL 证书路径。
 
 ---
 

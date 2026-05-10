@@ -15,7 +15,7 @@ public class FeignConfig {
 
     @Bean
     public Logger.Level feignLoggerLevel() {
-        return Logger.Level.FULL;
+        return Logger.Level.BASIC;
     }
 
     @Bean
@@ -31,6 +31,10 @@ public class FeignConfig {
                 String userId = request.getHeader("X-User-Id");
                 if (userId != null && !userId.isEmpty()) {
                     template.header("X-User-Id", userId);
+                }
+                String traceId = request.getHeader("X-Trace-Id");
+                if (traceId != null && !traceId.isEmpty()) {
+                    template.header("X-Trace-Id", traceId);
                 }
             }
         };

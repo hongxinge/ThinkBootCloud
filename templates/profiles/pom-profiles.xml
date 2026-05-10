@@ -1,0 +1,49 @@
+<!-- 多环境 Maven Profile 配置示例 -->
+<!-- 复制到父 pom.xml 的 <profiles> 节点中使用 -->
+
+<profiles>
+    <!-- 开发环境 -->
+    <profile>
+        <id>dev</id>
+        <properties>
+            <spring.profiles.active>dev</spring.profiles.active>
+            <nacos.server>localhost:8848</nacos.server>
+            <nacos.namespace>dev</nacos.namespace>
+            <redis.host>localhost</redis.host>
+            <mysql.host>localhost</mysql.host>
+        </properties>
+        <activation>
+            <activeByDefault>true</activeByDefault>
+        </activation>
+    </profile>
+
+    <!-- 测试环境 -->
+    <profile>
+        <id>test</id>
+        <properties>
+            <spring.profiles.active>test</spring.profiles.active>
+            <nacos.server>192.168.1.100:8848</nacos.server>
+            <nacos.namespace>test</nacos.namespace>
+            <redis.host>192.168.1.100</redis.host>
+            <mysql.host>192.168.1.100</mysql.host>
+        </properties>
+    </profile>
+
+    <!-- 生产环境 -->
+    <profile>
+        <id>prod</id>
+        <properties>
+            <spring.profiles.active>prod</spring.profiles.active>
+            <nacos.server>10.0.0.100:8848</nacos.server>
+            <nacos.namespace>prod</nacos.namespace>
+            <redis.host>10.0.0.100</redis.host>
+            <mysql.host>10.0.0.100</mysql.host>
+        </properties>
+    </profile>
+</profiles>
+
+<!-- 使用方式：
+  开发环境：mvn clean package（默认 dev）
+  测试环境：mvn clean package -P test
+  生产环境：mvn clean package -P prod
+-->
