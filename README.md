@@ -2,7 +2,7 @@
 
 > 🚀 轻量级微服务开发框架，专为C端客户端场景设计
 
-**技术栈**: Spring Boot 3.2.5 | Spring Cloud 2023.0.1 | Spring Cloud Alibaba 2023.0.1.0 | Java 17
+**技术栈**: Spring Boot 3.2.5 | Spring Cloud 2023.0.1 | Spring Cloud Alibaba 2023.0.1.0 | Java 17 | RabbitMQ
 
 **开源协议**: [MIT](LICENSE) | 完全免费 | 可自由商用
 
@@ -34,6 +34,7 @@ ThinkBootCloud 是一款基于 Spring Cloud Alibaba + Spring Boot 3 的轻量级
 | Nacos | 2.x | 注册中心 + 配置中心 |
 | MyBatis-Plus | 3.5.6 | ORM框架 |
 | Redis (Redisson) | 3.27.2 | 缓存 + 分布式锁 |
+| RabbitMQ | 3.12.x | 消息队列 |
 | JWT (JJWT) | 0.12.5 | Token认证 |
 | OpenFeign | 4.1.x | 服务间通信 |
 | Sentinel | 2023.0.1.0 | 限流熔断 |
