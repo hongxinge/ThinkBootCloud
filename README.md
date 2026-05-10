@@ -682,7 +682,7 @@ String result = DistributedLock.executeWithLock(
 
 ### RabbitMQ 消息队列
 
-框架集成了 RabbitMQ 消息队列，提供开箱即用的消息发送和消费能力。
+框架集成了 RabbitMQ 消息队列，**自动配置，开箱即用**。开发者只需关注业务逻辑（发送消息和消费消息），其他全部由框架自动处理。
 
 #### 1. 引入依赖
 
@@ -700,24 +700,41 @@ String result = DistributedLock.executeWithLock(
 ```yaml
 spring:
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
-    virtual-host: /
+    host: localhost          # RabbitMQ 地址
+    port: 5672               # RabbitMQ 端口
+    username: guest          # 用户名
+    password: guest          # 密码
+    virtual-host: /          # 虚拟主机
 
 thinkboot:
   mq:
     rabbitmq:
       enable: true                              # 启用 RabbitMQ
-      exchange: thinkboot.default.exchange      # 默认交换机
-      queue-prefix: thinkboot.                  # 队列前缀
+      exchange: thinkboot.default.exchange      # 默认交换机名称
+      queue-prefix: thinkboot.                  # 队列前缀（自动创建的队列会使用此前缀）
 ```
 
-#### 3. 发送消息
+#### 3. 自动配置说明
+
+**框架自动完成以下配置，开发者无需关心**：
+
+- ✅ 自动创建 DirectExchange（默认交换机）
+- ✅ 自动创建默认队列（带死信队列配置）
+- ✅ 自动创建队列绑定关系
+- ✅ 自动配置 JSON 序列化器
+- ✅ 自动配置 RabbitTemplate
+
+**开发者只需要做两件事**：
+1. 注入 `RabbitMessageSender` 发送消息
+2. 使用 `@RabbitListener` 消费消息
+
+#### 4. 发送消息（生产者）
+
+注入 `RabbitMessageSender` 即可发送消息，**消息对象会自动序列化为 JSON**：
 
 ```java
 import com.thinkboot.mq.rabbitmq.core.RabbitMessageSender;
+import org.springframework.stereotype.Service;
 
 @Service
 public class OrderService {
@@ -727,7 +744,10 @@ public class OrderService {
     
     // 发送普通消息
     public void createOrder(Order order) {
-        // 创建订单业务逻辑
+        // 1. 创建订单（你的业务逻辑）
+        saveOrder(order);
+        
+        // 2. 发送消息（框架自动序列化）
         messageSender.send("order.created", order);
     }
     
@@ -739,33 +759,62 @@ public class OrderService {
             30 * 60 * 1000  // 30分钟，单位毫秒
         );
     }
+    
+    // 发送到自定义交换机
+    public void sendToCustom(String exchange, String routingKey, Object data) {
+        messageSender.send(exchange, routingKey, data);
+    }
 }
 ```
 
-#### 4. 消费消息
+#### 5. 消费消息（消费者）
 
-使用 Spring 原生的 `@RabbitListener` 注解消费消息：
+使用 Spring 原生 `@RabbitListener` 注解，**框架自动反序列化为 Java 对象**：
 
 ```java
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class OrderMessageConsumer {
     
+    // 消费订单创建消息
     @RabbitListener(queues = "thinkboot.order.created")
     public void handleOrderCreated(Order order) {
-        // 处理订单创建消息
-        System.out.println("收到订单创建消息: " + order);
+        log.info("收到订单创建消息: {}", order);
+        // 处理订单创建后的业务逻辑（如发送通知、更新库存等）
     }
     
+    // 消费订单超时消息
     @RabbitListener(queues = "thinkboot.order.timeout")
     public void handleOrderTimeout(Order order) {
-        // 处理订单超时消息
-        System.out.println("收到订单超时消息: " + order);
+        log.info("收到订单超时消息: {}", order);
+        // 处理订单超时取消业务逻辑
     }
 }
 ```
+
+#### 6. 配置项说明
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `thinkboot.mq.rabbitmq.enable` | false | 是否启用 RabbitMQ |
+| `thinkboot.mq.rabbitmq.exchange` | thinkboot.default.exchange | 默认交换机名称 |
+| `thinkboot.mq.rabbitmq.queue-prefix` | thinkboot. | 队列前缀 |
+
+#### 7. 完整使用流程
+
+```
+1. 引入依赖 → think-boot-mq-rabbitmq
+2. 配置连接 → spring.rabbitmq.*
+3. 启用功能 → thinkboot.mq.rabbitmq.enable: true
+4. 发送消息 → @Autowired + messageSender.send()
+5. 消费消息 → @RabbitListener + 处理方法
+```
+
+**总结：开发者只需关注第 4 步和第 5 步的业务逻辑，其他全部自动配置！**
 
 ---
 
