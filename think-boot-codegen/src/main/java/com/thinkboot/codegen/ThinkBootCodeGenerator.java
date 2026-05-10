@@ -11,6 +11,8 @@ import java.util.Collections;
 
 public class ThinkBootCodeGenerator {
 
+    // 以下为配置默认值，开发者通过链式调用覆盖
+    // 例如：new ThinkBootCodeGenerator().username("myuser").password("mypassword")
     private String url = "jdbc:mysql://localhost:3306/thinkboot?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai";
     private String username = "root";
     private String password = "root";
