@@ -19,6 +19,10 @@ public class GatewayProperties {
 
     private boolean rateLimitEnable = false;
 
+    private int rateLimitCount = 100;
+
+    private int rateLimitWindow = 60;
+
     private String jwtSecret = "dGhpbmstYm9vdC1nYXRld2F5LWp3dC1zZWNyZXQta2V5LW11c3QtYmUtYXQtbGVhc3QtMjU2LWJpdHM=";
 
     @PostConstruct

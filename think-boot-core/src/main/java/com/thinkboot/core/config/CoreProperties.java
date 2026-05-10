@@ -13,6 +13,7 @@ import java.util.List;
 public class CoreProperties {
     private boolean enableCors = true;
     private List<String> corsAllowedOrigins = new ArrayList<>();
-    private String xssFilterEnabled = "true";
+    private boolean xssFilterEnabled = false;
     private int maxUploadSize = 10;
+    private boolean enableTraceId = true;
 }
