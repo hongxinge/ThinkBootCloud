@@ -19,6 +19,7 @@
         <module>think-boot-sentinel</module>
         <module>think-boot-file</module>
         <module>think-boot-codegen</module>
+        <module>think-boot-mq-rabbitmq</module>
         <module>think-boot-gateway</module>
         <module>think-boot-nacos</module>
         <module>think-boot-mybatis</module>
@@ -110,6 +111,11 @@
             <dependency>
                 <groupId>com.thinkboot</groupId>
                 <artifactId>think-boot-codegen</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.thinkboot</groupId>
+                <artifactId>think-boot-mq-rabbitmq</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

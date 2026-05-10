@@ -1,4 +1,4 @@
-﻿# ThinkBootCloud
+# ThinkBootCloud
 
 > 🚀 轻量级微服务开发框架，专为C端客户端场景设计
 
@@ -57,6 +57,7 @@ think-boot-cloud/
 ├── think-boot-sentinel/                       # Sentinel限流熔断模块
 ├── think-boot-file/                           # 文件上传模块
 ├── think-boot-codegen/                        # 代码生成器模块
+├── think-boot-mq-rabbitmq/                    # RabbitMQ消息队列模块
 ├── think-boot-gateway/                        # API网关模块
 ├── think-boot-nacos/                          # Nacos注册配置模块
 ├── think-boot-mybatis/                        # MyBatis-Plus集成模块
@@ -79,6 +80,7 @@ think-boot-cloud/
 | **think-boot-redis** | 缓存模块 | RedisTemplate封装、Redisson分布式锁 |
 | **think-boot-file** | 文件上传模块 | 本地存储、阿里云OSS、文件上传下载 |
 | **think-boot-codegen** | 代码生成器模块 | 基于数据库表自动生成CRUD代码 |
+| **think-boot-mq-rabbitmq** | 消息队列模块 | RabbitMQ集成、消息发送消费、延迟消息 |
 | **think-boot-example** | 示例模块 | 完整演示框架用法 |
 
 ---
@@ -158,6 +160,18 @@ mvn clean install -DskipTests
     <dependency>
         <groupId>com.thinkboot</groupId>
         <artifactId>think-boot-sentinel</artifactId>
+    </dependency>
+    
+    <!-- 按需引入：文件上传 -->
+    <dependency>
+        <groupId>com.thinkboot</groupId>
+        <artifactId>think-boot-file</artifactId>
+    </dependency>
+
+    <!-- 按需引入：RabbitMQ消息队列 -->
+    <dependency>
+        <groupId>com.thinkboot</groupId>
+        <artifactId>think-boot-mq-rabbitmq</artifactId>
     </dependency>
 </dependencies>
 ```
@@ -665,6 +679,95 @@ String result = DistributedLock.executeWithLock(
     TimeUnit.SECONDS
 );
 ```
+
+### RabbitMQ 消息队列
+
+框架集成了 RabbitMQ 消息队列，提供开箱即用的消息发送和消费能力。
+
+#### 1. 引入依赖
+
+在你的项目中添加 RabbitMQ 模块依赖：
+
+```xml
+<dependency>
+    <groupId>com.thinkboot</groupId>
+    <artifactId>think-boot-mq-rabbitmq</artifactId>
+</dependency>
+```
+
+#### 2. 配置 application.yml
+
+```yaml
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+
+thinkboot:
+  mq:
+    rabbitmq:
+      enable: true                              # 启用 RabbitMQ
+      exchange: thinkboot.default.exchange      # 默认交换机
+      queue-prefix: thinkboot.                  # 队列前缀
+```
+
+#### 3. 发送消息
+
+```java
+import com.thinkboot.mq.rabbitmq.core.RabbitMessageSender;
+
+@Service
+public class OrderService {
+    
+    @Autowired
+    private RabbitMessageSender messageSender;
+    
+    // 发送普通消息
+    public void createOrder(Order order) {
+        // 创建订单业务逻辑
+        messageSender.send("order.created", order);
+    }
+    
+    // 发送延迟消息（30分钟后超时取消）
+    public void sendTimeoutMessage(Order order) {
+        messageSender.sendDelay(
+            "order.timeout", 
+            order, 
+            30 * 60 * 1000  // 30分钟，单位毫秒
+        );
+    }
+}
+```
+
+#### 4. 消费消息
+
+使用 Spring 原生的 `@RabbitListener` 注解消费消息：
+
+```java
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.stereotype.Component;
+
+@Component
+public class OrderMessageConsumer {
+    
+    @RabbitListener(queues = "thinkboot.order.created")
+    public void handleOrderCreated(Order order) {
+        // 处理订单创建消息
+        System.out.println("收到订单创建消息: " + order);
+    }
+    
+    @RabbitListener(queues = "thinkboot.order.timeout")
+    public void handleOrderTimeout(Order order) {
+        // 处理订单超时消息
+        System.out.println("收到订单超时消息: " + order);
+    }
+}
+```
+
+---
 
 ### 代码生成器
 
