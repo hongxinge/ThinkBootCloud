@@ -70,11 +70,14 @@ thinkboot:
 
     rate-limit-enable: false
 
-    jwt-secret: ${JWT_SECRET:dGhpbmstYm9vdC1nYXRld2F5LWp3dC1zZWNyZXQta2V5LW11c3QtYmUtYXQtbGVhc3QtMjU2LWJpdHM=}
+    # JWT密钥 - 与 Auth 模块共享同一环境变量和默认值
+    # 修改 JWT_SECRET 即可同时覆盖 Gateway 和 Auth
+    jwt-secret: ${JWT_SECRET:dGhpbmstYm9vdC1jbG91ZC1qd3Qtc2VjcmV0LWtleS1tdXN0LWJlLWF0LWxlYXN0LTI1Ni1iaXRz}
 
   auth:
     jwt:
-      secret: ${JWT_SECRET:dGhpbmstYm9vdC1nYXRld2F5LWF1dGgtand0LXNlY3JldC1rZXktbXVzdC1iZS1hdC1sZWFzdC0yNTYtYml0cw==}
+      # JWT密钥 - 与 Gateway 共享同一环境变量和默认值
+      secret: ${JWT_SECRET:dGhpbmstYm9vdC1jbG91ZC1qd3Qtc2VjcmV0LWtleS1tdXN0LWJlLWF0LWxlYXN0LTI1Ni1iaXRz}
       expiration: ${JWT_EXPIRATION:7200000}
       refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
