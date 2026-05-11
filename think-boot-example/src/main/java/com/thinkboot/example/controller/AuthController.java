@@ -23,11 +23,13 @@ public class AuthController {
     private final UserService userService;
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
+    private final long tokenExpireSeconds;
 
     public AuthController(UserService userService, JwtUtils jwtUtils, PasswordEncoder passwordEncoder) {
         this.userService = userService;
         this.jwtUtils = jwtUtils;
         this.passwordEncoder = passwordEncoder;
+        this.tokenExpireSeconds = jwtUtils.getExpiration() / 1000;
     }
 
     @Operation(summary = "User login")
@@ -52,7 +54,7 @@ public class AuthController {
         response.setToken(token);
         response.setRefreshToken(refreshToken);
         response.setUserId(user.getId().toString());
-        response.setExpireTime(7200L);
+        response.setExpireTime(tokenExpireSeconds);
 
         return R.success(response);
     }
@@ -94,7 +96,7 @@ public class AuthController {
         response.setToken(newToken);
         response.setRefreshToken(newRefreshToken);
         response.setUserId(userId);
-        response.setExpireTime(7200L);
+        response.setExpireTime(tokenExpireSeconds);
 
         return R.success(response);
     }

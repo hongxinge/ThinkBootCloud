@@ -76,4 +76,8 @@ public class JwtUtils {
         byte[] keyBytes = Decoders.BASE64.decode(jwtProperties.getSecret());
         return Keys.hmacShaKeyFor(keyBytes);
     }
+
+    public long getExpiration() {
+        return jwtProperties.getExpiration();
+    }
 }
