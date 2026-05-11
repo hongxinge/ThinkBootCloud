@@ -17,3 +17,6 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Internal promotional materials
+promotion/
