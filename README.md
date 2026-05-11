@@ -100,8 +100,12 @@ think-boot-cloud/
 ### 第一步：编译安装框架
 
 ```bash
-# 克隆项目
+# 克隆项目（任选一个仓库）
+# GitHub:
+git clone https://github.com/hongxinge/ThinkBootCloud.git
+# Gitee（国内镜像）:
 git clone https://gitee.com/hongxinge/think-boot-cloud.git
+
 cd think-boot-cloud
 
 # 编译并安装到本地Maven仓库
@@ -1497,5 +1501,9 @@ public R<String> getCurrentUser() {
 
 ## 📮 联系方式
 
-- 项目地址：https://gitee.com/hongxinge/think-boot-cloud
-- 问题反馈：https://gitee.com/hongxinge/think-boot-cloud/issues
+- 项目地址：
+  - GitHub: https://github.com/hongxinge/ThinkBootCloud
+  - Gitee（国内镜像）: https://gitee.com/hongxinge/think-boot-cloud
+- 问题反馈：
+  - GitHub Issues: https://github.com/hongxinge/ThinkBootCloud/issues
+  - Gitee Issues: https://gitee.com/hongxinge/think-boot-cloud/issues
