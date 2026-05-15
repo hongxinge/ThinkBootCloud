@@ -80,4 +80,17 @@ public class JwtUtils {
     public long getExpiration() {
         return jwtProperties.getExpiration();
     }
+
+    /**
+     * 从 Token 中解析完整的 LoginUser 对象
+     */
+    public com.thinkboot.auth.model.LoginUser parseLoginUser(String token) {
+        Claims claims = parseToken(token);
+        com.thinkboot.auth.model.LoginUser loginUser = new com.thinkboot.auth.model.LoginUser();
+        loginUser.setUserId(claims.getSubject());
+        loginUser.setToken(token);
+        loginUser.setExpireTime(claims.getExpiration().getTime() / 1000);
+        loginUser.setClaims(claims);
+        return loginUser;
+    }
 }

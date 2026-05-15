@@ -3,6 +3,7 @@ package com.thinkboot.auth.interceptor;
 import com.thinkboot.auth.annotation.IgnoreAuth;
 import com.thinkboot.auth.config.JwtProperties;
 import com.thinkboot.auth.context.UserContext;
+import com.thinkboot.auth.model.LoginUser;
 import com.thinkboot.auth.util.JwtUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,12 +17,31 @@ import java.util.List;
 /**
  * 认证拦截器
  * 
- * 认证策略：默认所有接口都需要 Token 验证，只有以下情况放行：
- * 1. 路径匹配 skip-paths 配置
- * 2. 方法或类上标记了 @IgnoreAuth 注解
+ * 认证策略：
+ * 1. 外部请求（客户端 → 网关 → 微服务）：网关验证 JWT，微服务信任网关传递的 X-User-Id
+ * 2. 内部调用（微服务 → Feign → 微服务）：跳过 Token 验证，信任内部调用
+ * 3. 直接访问微服务：必须验证 Token（单体部署模式）
+ * 
+ * 放行条件（任一即可）：
+ * - 路径匹配 skip-paths 配置
+ * - 方法或类上标记了 @IgnoreAuth 注解
+ * - 包含内部调用标记 X-Internal-Call（来自 Feign 调用）
+ * - 包含 X-User-Id 头（来自网关）
+ * 
+ * 安全边界：网关是唯一的外部入口，内部服务走 Nacos 注册中心的信任网络
  */
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
+
+    /**
+     * 网关传递的用户 ID 头
+     */
+    private static final String USER_ID_HEADER = "X-User-Id";
+
+    /**
+     * 内部调用标记头（Feign 自动传递）
+     */
+    private static final String INTERNAL_CALL_HEADER = "X-Internal-Call";
 
     private final JwtUtils jwtUtils;
     private final JwtProperties jwtProperties;
@@ -54,7 +74,33 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 以上条件都不满足，必须验证 Token
+        // 检查3：内部调用（Feign → 微服务），跳过 Token 验证
+        String internalCall = request.getHeader(INTERNAL_CALL_HEADER);
+        if ("true".equalsIgnoreCase(internalCall)) {
+            String userId = request.getHeader(USER_ID_HEADER);
+            if (userId != null && !userId.isEmpty()) {
+                // 内部调用仍传递用户信息，但不验证 Token
+                LoginUser loginUser = new LoginUser();
+                loginUser.setUserId(userId);
+                loginUser.setToken(null); // 内部调用无 Token
+                loginUser.setExpireTime(0L);
+                UserContext.setCurrentUser(loginUser);
+                return true;
+            }
+        }
+
+        // 检查4：网关已验证 Token，直接使用 X-User-Id
+        String gatewayUserId = request.getHeader(USER_ID_HEADER);
+        if (gatewayUserId != null && !gatewayUserId.isEmpty()) {
+            LoginUser loginUser = new LoginUser();
+            loginUser.setUserId(gatewayUserId);
+            loginUser.setToken(extractToken(request));
+            loginUser.setExpireTime(jwtUtils.getExpiration() / 1000);
+            UserContext.setCurrentUser(loginUser);
+            return true;
+        }
+
+        // 检查5：直接访问微服务（单体部署），必须验证 Token
         String token = extractToken(request);
 
         if (token == null || token.isEmpty()) {
@@ -67,10 +113,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        // Token 验证通过，设置用户上下文
-        String userId = jwtUtils.getUserId(token);
-        UserContext.setCurrentUserId(userId);
-        request.setAttribute("userId", userId);
+        // Token 验证通过，设置完整的用户上下文
+        LoginUser loginUser = jwtUtils.parseLoginUser(token);
+        UserContext.setCurrentUser(loginUser);
 
         return true;
     }
@@ -86,9 +131,12 @@ public class AuthInterceptor implements HandlerInterceptor {
      * 优先从 Authorization Header 获取，其次从请求参数获取
      */
     private String extractToken(HttpServletRequest request) {
-        String authorization = request.getHeader("Authorization");
-        if (authorization != null && authorization.startsWith("Bearer ")) {
-            return authorization.substring(7);
+        String tokenHeader = jwtProperties.getTokenHeader();
+        String tokenPrefix = jwtProperties.getTokenPrefix();
+        
+        String authHeader = request.getHeader(tokenHeader);
+        if (authHeader != null && authHeader.startsWith(tokenPrefix)) {
+            return authHeader.substring(tokenPrefix.length());
         }
 
         return request.getParameter("token");
