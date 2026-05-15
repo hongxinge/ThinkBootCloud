@@ -9,26 +9,32 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
+import org.springframework.util.DigestUtils;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
  * 认证拦截器
  * 
- * 认证策略：
- * 1. 外部请求（客户端 → 网关 → 微服务）：网关验证 JWT，微服务信任网关传递的 X-User-Id
+ * 企业级安全架构：
+ * 1. 外部请求（客户端 → 网关 → 微服务）：网关验证 JWT，注入 X-User-Id + X-Gateway-Signature
  * 2. 内部调用（微服务 → Feign → 微服务）：跳过 Token 验证，信任内部调用
  * 3. 直接访问微服务：必须验证 Token（单体部署模式）
  * 
- * 放行条件（任一即可）：
- * - 路径匹配 skip-paths 配置
- * - 方法或类上标记了 @IgnoreAuth 注解
- * - 包含内部调用标记 X-Internal-Call（来自 Feign 调用）
- * - 包含 X-User-Id 头（来自网关）
+ * 安全防护：
+ * - 网关验证后注入内部签名（X-Gateway-Signature），下游服务验证签名
+ * - 防止绕过网关直接调用微服务（伪造请求头无有效签名）
+ * - 签名有效期5分钟，防止重放攻击
  * 
- * 安全边界：网关是唯一的外部入口，内部服务走 Nacos 注册中心的信任网络
+ * 放行条件（按优先级）：
+ * 1. 路径匹配 skip-paths 配置
+ * 2. 方法或类上标记了 @IgnoreAuth 注解
+ * 3. 包含内部调用标记 X-Internal-Call（来自 Feign 调用）
+ * 4. 包含有效的 X-Gateway-Signature（来自网关，已验证）
+ * 5. 直接访问微服务（单体部署），必须验证 Token
  */
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
@@ -39,9 +45,19 @@ public class AuthInterceptor implements HandlerInterceptor {
     private static final String USER_ID_HEADER = "X-User-Id";
 
     /**
+     * 网关内部签名头（下游服务据此信任请求）
+     */
+    private static final String GATEWAY_SIGNATURE_HEADER = "X-Gateway-Signature";
+    
+    /**
      * 内部调用标记头（Feign 自动传递）
      */
     private static final String INTERNAL_CALL_HEADER = "X-Internal-Call";
+
+    /**
+     * 网关签名有效期（毫秒）
+     */
+    private static final long SIGNATURE_VALID_MS = 5 * 60 * 1000;
 
     private final JwtUtils jwtUtils;
     private final JwtProperties jwtProperties;
@@ -89,15 +105,24 @@ public class AuthInterceptor implements HandlerInterceptor {
             }
         }
 
-        // 检查4：网关已验证 Token，直接使用 X-User-Id
+        // 检查4：网关已验证 Token，验证内部签名后信任
+        String gatewaySignature = request.getHeader(GATEWAY_SIGNATURE_HEADER);
         String gatewayUserId = request.getHeader(USER_ID_HEADER);
-        if (gatewayUserId != null && !gatewayUserId.isEmpty()) {
-            LoginUser loginUser = new LoginUser();
-            loginUser.setUserId(gatewayUserId);
-            loginUser.setToken(extractToken(request));
-            loginUser.setExpireTime(jwtUtils.getExpiration() / 1000);
-            UserContext.setCurrentUser(loginUser);
-            return true;
+        
+        if (gatewaySignature != null && !gatewaySignature.isEmpty() && gatewayUserId != null && !gatewayUserId.isEmpty()) {
+            // 验证网关签名（防绕过网关、防伪造请求头）
+            if (validateGatewaySignature(gatewaySignature, gatewayUserId)) {
+                LoginUser loginUser = new LoginUser();
+                loginUser.setUserId(gatewayUserId);
+                loginUser.setToken(extractToken(request));
+                loginUser.setExpireTime(jwtUtils.getExpiration() / 1000);
+                UserContext.setCurrentUser(loginUser);
+                return true;
+            } else {
+                // 签名无效，可能是伪造请求或绕过网关
+                sendUnauthorizedResponse(response, "Invalid gateway signature, request may be forged");
+                return false;
+            }
         }
 
         // 检查5：直接访问微服务（单体部署），必须验证 Token
@@ -124,6 +149,42 @@ public class AuthInterceptor implements HandlerInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
         // 清理 ThreadLocal，防止内存泄漏
         UserContext.clear();
+    }
+
+    /**
+     * 验证网关内部签名
+     * 
+     * 签名格式：md5hash:timestamp
+     * 验证逻辑：
+     * 1. 检查签名格式
+     * 2. 检查时间戳是否在有效期内（5分钟）
+     * 3. 重新计算签名并对比
+     */
+    private boolean validateGatewaySignature(String signature, String userId) {
+        try {
+            String[] parts = signature.split(":");
+            if (parts.length != 2) {
+                return false;
+            }
+            
+            String expectedHash = parts[0];
+            long timestamp = Long.parseLong(parts[1]);
+            
+            // 检查签名是否过期
+            long now = System.currentTimeMillis();
+            if (Math.abs(now - timestamp) > SIGNATURE_VALID_MS) {
+                return false;
+            }
+            
+            // 重新计算签名
+            String secret = jwtProperties.getSecret();
+            String data = userId + ":" + timestamp + ":" + secret;
+            String actualHash = DigestUtils.md5DigestAsHex(data.getBytes(StandardCharsets.UTF_8));
+            
+            return expectedHash.equals(actualHash);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**

@@ -118,12 +118,12 @@ class AuthInterceptorTest {
     }
 
     @Test
-    @DisplayName("测试6：网关模式 - 信任X-User-Id")
+    @DisplayName("测试6：网关模式 - 信任X-User-Id + 签名")
     void testGatewayMode() throws Exception {
         when(request.getRequestURI()).thenReturn("/api/user/info");
         when(request.getHeader("X-User-Id")).thenReturn("user456");
         when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
-        when(jwtUtils.getExpiration()).thenReturn(7200000L);
+        when(request.getHeader("X-Gateway-Signature")).thenReturn(generateValidSignature("user456"));
         
         HandlerMethod handler = createMockHandlerMethod();
         boolean result = interceptor.preHandle(request, response, handler);
@@ -132,6 +132,13 @@ class AuthInterceptorTest {
         assertEquals("user456", UserContext.getCurrentUserId());
         assertEquals("valid-token", UserContext.getCurrentUser().getToken());
         verify(jwtUtils, never()).validateToken(anyString());
+    }
+
+    private String generateValidSignature(String userId) {
+        long timestamp = System.currentTimeMillis();
+        String data = userId + ":" + timestamp + ":" + jwtProperties.getSecret();
+        String md5Hash = org.springframework.util.DigestUtils.md5DigestAsHex(data.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return md5Hash + ":" + timestamp;
     }
 
     @Test

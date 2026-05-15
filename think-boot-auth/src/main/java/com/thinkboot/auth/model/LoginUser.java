@@ -9,6 +9,7 @@ import java.util.Map;
  * 
  * 用于存储当前登录用户的完整信息，包括：
  * - 用户ID（从JWT subject中解析）
+ * - 用户名（从JWT claims或网关注入的X-Username头中获取）
  * - Token（当前请求的JWT Token）
  * - 过期时间（秒）
  * - 自定义Claims（JWT中存储的额外信息）
@@ -16,7 +17,7 @@ import java.util.Map;
  * 使用示例：
  * LoginUser loginUser = UserContext.getCurrentUser();
  * String userId = loginUser.getUserId();
- * String username = (String) loginUser.getClaim("username");
+ * String username = loginUser.getUsername();
  */
 @Data
 public class LoginUser {
@@ -25,6 +26,11 @@ public class LoginUser {
      * 用户ID（JWT subject）
      */
     private String userId;
+
+    /**
+     * 用户名（从JWT claims或网关X-Username头获取）
+     */
+    private String username;
 
     /**
      * 当前请求的 Token
@@ -38,7 +44,7 @@ public class LoginUser {
 
     /**
      * JWT 自定义 Claims
-     * 例如：username、role 等
+     * 例如：role、email 等
      */
     private Map<String, Object> claims;
 
