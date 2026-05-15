@@ -369,7 +369,31 @@ public class UserController {
 }
 ```
 
-### 第五步：启动项目
+### 第五步：运行测试
+
+框架采用严格的测试保障，每个模块都有完善的测试覆盖：
+
+```bash
+# 运行全部测试
+mvn clean test
+
+# 查看测试覆盖率报告
+mvn jacoco:report
+```
+
+**测试覆盖情况**：
+
+| 模块 | 测试数 | 覆盖内容 |
+|------|--------|----------|
+| think-boot-common | 41 | 统一响应、分页、全局异常、业务异常 |
+| think-boot-core | 15 | 配置属性、XSS过滤、TraceId |
+| think-boot-auth | 46 | JWT配置、Token生成/验证、拦截器(5种模式)、参数解析器 |
+| think-boot-gateway | 8 | 网关配置、限流、JWT验证 |
+| **总计** | **110+** | **核心模块覆盖率 80%+** |
+
+> **重要**：每次提交代码前必须通过全部测试，确保框架质量。
+
+### 第六步：启动项目
 
 ```bash
 # 编译打包
@@ -548,17 +572,80 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 #### 获取当前登录用户
 
 ```java
-// 获取当前登录用户（默认需要认证，无需添加注解）
+// 方式1：使用 UserContext（推荐）
 @GetMapping("/me")
-public R<String> getCurrentUser() {
-    // 获取当前用户ID
+public R<User> getCurrentUser() {
     String userId = UserContext.getCurrentUserId();
-    
-    // 根据userId查询完整用户信息
+    User user = userService.getById(Long.valueOf(userId));
+    return R.success(user);
+}
+
+// 方式2：使用 @CurrentUserId 注解（更简洁）
+@GetMapping("/me")
+public R<User> getCurrentUser(@CurrentUserId String userId) {
     User user = userService.getById(Long.valueOf(userId));
     return R.success(user);
 }
 ```
+
+### 微服务认证架构
+
+框架采用**网关验证 + 内部信任**的设计，符合 Spring Cloud Alibaba 微服务规范。
+
+#### 认证流程
+
+```
+客户端请求 → 网关（验证Token + 注入X-User-Id） → 服务A（信任网关） →[Feign + X-Internal-Call]→ 服务B（信任内部调用）
+               ✅ 唯一安全验证点                  ✅ 跳过验证           ✅ 跳过验证
+```
+
+**智能认证判断（5种模式）**：
+
+1. **免认证路径** - 配置在 `skip-paths` 中的路径
+2. **@IgnoreAuth注解** - 方法或类上标记该注解
+3. **内部调用** - 包含 `X-Internal-Call: true` 头（Feign自动添加），跳过Token验证
+4. **网关模式** - 包含 `X-User-Id` 头（网关验证后注入），直接使用
+5. **单体模式** - 直接访问微服务，必须验证Token
+
+> **重要**：Feign内部调用时，Token验证由网关统一处理，服务间走Nacos注册中心信任网络，不需要互相验证。
+
+### 性能优化说明
+
+框架在多个层面进行了性能优化：
+
+#### 1. JWT认证优化
+
+- **网关验证 + 内部信任**：网关是唯一验证JWT的地方，微服务内部调用跳过验证，减少JWT解析开销
+- **智能判断**：优先读取 `X-User-Id` 头，避免重复解析Token
+- **ThreadLocal清理**：`afterCompletion` 中自动清理，防止内存泄漏
+
+#### 2. 数据库连接池优化
+
+- **Druid连接池**：默认配置 `initial-size=5, max-active=20, max-wait=60000ms`
+- **连接池监控**：自动统计连接使用情况，便于排查慢查询
+
+#### 3. Redis缓存优化
+
+- **Redisson分布式锁**：基于Redisson的高性能分布式锁，支持可重入锁
+- **声明式缓存**：Spring Cache + Redis，自动缓存热点数据
+- **JSON序列化**：自动处理对象序列化，支持复杂类型
+
+#### 4. 网关限流优化
+
+- **IP限流**：网关层基于滑动窗口实现IP限流，防止恶意请求
+- **令牌桶算法**：支持自定义限流策略，保护下游服务
+
+#### 5. 链路追踪优化
+
+- **TraceId自动注入**：每个请求自动生成唯一TraceId，便于日志追踪
+- **MDC集成**：TraceId自动注入到日志上下文，无需手动传递
+
+#### 6. 响应优化
+
+- **统一响应格式**：所有接口自动返回统一格式，减少前端处理
+- **全局异常处理**：自动捕获异常并转换为友好响应
+
+---
 
 ### OpenFeign 服务间调用
 
