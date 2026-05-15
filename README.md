@@ -479,11 +479,11 @@ public PageResponse<User> list(@RequestParam(defaultValue = "1") int pageNo,
 
 ### Token 认证
 
-**重要：框架默认所有接口都需要 Token 验证**，只有以下两种情况会放行：
+框架**默认所有接口都需要 Token 验证**，只有以下两种情况会放行：
 
-#### 方式一：配置免认证路径（推荐批量管理）
+#### 放行条件
 
-在 `application.yml` 中配置不需要 Token 验证的路径：
+**方式1：配置免认证路径（批量管理）**
 
 ```yaml
 thinkboot:
@@ -492,73 +492,18 @@ thinkboot:
       skip-paths:
         - /api/auth/login          # 登录接口
         - /api/auth/register       # 注册接口
-        - /api/auth/refresh-token  # 刷新Token接口
         - /api/public/**           # 所有公开接口
-        - /doc.html
+        - /doc.html                # API文档
         - /swagger-resources/**
-        - /v3/api-docs/**
 ```
 
-#### 方式二：使用 @IgnoreAuth 注解（推荐单个接口）
-
-在方法或类上添加 `@IgnoreAuth` 注解，标记该接口不需要认证：
+**方式2：使用 @IgnoreAuth 注解（单个接口）**
 
 ```java
-@RestController
-@RequestMapping("/api/auth")
-public class AuthController {
-
-    // 免认证 - 单个接口
-    @IgnoreAuth
-    @PostMapping("/login")
-    public R<LoginResponse> login(@RequestBody LoginRequest request) {
-        // 验证用户名密码
-        User user = userService.getByUsername(request.getUsername());
-        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            return R.error(401, "用户名或密码错误");
-        }
-
-        // 生成 Token
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("username", user.getUsername());
-        
-        String token = jwtUtils.generateToken(user.getId().toString(), claims);
-        String refreshToken = jwtUtils.generateRefreshToken(user.getId().toString(), claims);
-
-        LoginResponse response = new LoginResponse();
-        response.setToken(token);
-        response.setRefreshToken(refreshToken);
-        response.setUserId(user.getId().toString());
-        response.setExpireTime(7200L);
-
-        return R.success(response);
-    }
-
-    // 免认证 - 整个类所有接口
-    @IgnoreAuth
-    @PostMapping("/register")
-    public R<Void> register(@RequestBody LoginRequest request) { ... }
-}
-```
-
-#### 认证接口（默认行为）
-
-**不需要添加任何注解**，框架默认所有接口都需要认证：
-
-```java
-@RestController
-@RequestMapping("/api/users")
-public class UserController {
-
-    // 默认需要认证 - 无需添加任何注解
-    @GetMapping("/{id}")
-    public R<User> getById(@PathVariable Long id) {
-        return R.success(userService.getById(id));
-    }
-
-    // 默认需要认证
-    @PostMapping
-    public R<Void> create(@RequestBody UserDTO dto) { ... }
+@IgnoreAuth
+@PostMapping("/login")
+public R<LoginResponse> login(@RequestBody LoginRequest request) {
+    // 免认证接口
 }
 ```
 
@@ -567,6 +512,28 @@ public class UserController {
 ```
 GET /api/users/1
 Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
+```
+
+> **说明**：默认使用 `Authorization: Bearer <token>` 格式，这是 OAuth 2.0 标准格式。
+
+#### 自定义 Token Header（可选）
+
+如果你的前端不使用标准 Authorization 头，可以自定义：
+
+```yaml
+thinkboot:
+  auth:
+    jwt:
+      # 自定义请求头名称（默认 Authorization）
+      token-header: X-Token
+      # 自定义前缀（默认 "Bearer "），如果头名直接传token则留空
+      token-prefix: ""
+```
+
+前端请求示例（自定义后）：
+```
+GET /api/users/1
+X-Token: eyJhbGciOiJIUzI1NiJ9...
 ```
 
 #### 获取当前登录用户
@@ -1534,13 +1501,9 @@ spring:
 ### Q5: 如何获取当前登录用户信息？
 
 ```java
-// 获取当前登录用户（默认需要认证，无需添加注解）
 @GetMapping("/me")
-public R<String> getCurrentUser() {
-    // 获取当前用户ID
+public R<User> getCurrentUser() {
     String userId = UserContext.getCurrentUserId();
-    
-    // 根据userId查询完整用户信息
     User user = userService.getById(Long.valueOf(userId));
     return R.success(user);
 }
@@ -1550,10 +1513,21 @@ public R<String> getCurrentUser() {
 
 推荐使用 **OpenFeign**（已内置）：
 
-1. 在启动类添加 `@EnableFeignClients`
-2. 定义 `@FeignClient` 接口
-3. 注入接口直接调用
-4. **Token自动传递**，无需手动处理
+1. 定义 `@FeignClient` 接口
+2. 注入接口直接调用
+3. **Token自动传递**，无需手动处理
+
+### Q7: 如何自定义 Token 请求头？
+
+默认使用 `Authorization: Bearer <token>`，如需自定义：
+
+```yaml
+thinkboot:
+  auth:
+    jwt:
+      token-header: X-Token    # 自定义头名称
+      token-prefix: ""          # 留空表示不用前缀
+```
 
 ---
 
