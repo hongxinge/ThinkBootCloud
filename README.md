@@ -209,8 +209,27 @@ spring:
       port: 6379
       password:
       database: 0
+```
 
-# JWT认证配置（必须配置）
+### 第四步：配置 application.yml（续）
+
+#### Sentinel 限流配置（可选）
+
+```yaml
+spring:
+  cloud:
+    alibaba:
+      sentinel:
+        transport:
+          dashboard: localhost:8080  # Sentinel 控制台地址
+        eager: true                  # 应用启动时立即初始化
+```
+
+> **说明**：以上 Redis 和 Sentinel 配置均使用 Spring Cloud Alibaba 原生配置标准，开发者无需学习新的配置方式。
+
+#### 框架增强配置（原生没有的便捷功能）
+
+```yaml
 thinkboot:
   auth:
     jwt:
@@ -662,20 +681,28 @@ public class OrderController {
 
 ### Sentinel 限流熔断
 
-#### 1. 配置文件
+#### 1. 配置文件（使用原生配置）
 
 ```yaml
 spring:
   cloud:
-    sentinel:
-      transport:
-        dashboard: localhost:8080  # Sentinel 控制台地址
-      eager: true                  # 应用启动时立即初始化
+    alibaba:
+      sentinel:
+        transport:
+          dashboard: localhost:8080  # Sentinel 控制台地址
+        eager: true                  # 应用启动时立即初始化
 
+# 框架增强：Nacos 数据源配置（可选，原生没有）
 thinkboot:
   sentinel:
-    enabled: true
-    dashboard: localhost:8080
+    datasource:
+      nacos:
+        enabled: true
+        server-addr: localhost:8848
+        namespace: dev
+        group-id: SENTINEL_GROUP
+        data-id: your-service-flow-rules
+        rule-type: flow
 ```
 
 #### 2. 使用限流注解
@@ -694,6 +721,38 @@ public R<User> handleBlock(Long id, BlockException ex) {
 ```
 
 ### Redis 缓存使用
+
+#### 配置说明
+
+框架使用 **Spring Boot 原生 `spring.redis.*` 配置**，开发者无需学习新的配置方式：
+
+```yaml
+spring:
+  data:
+    redis:
+      host: localhost        # Redis 地址（原生配置）
+      port: 6379             # Redis 端口（原生配置）
+      password:              # Redis 密码（原生配置）
+      database: 0            # Redis 数据库（原生配置）
+      timeout: 10000ms       # 连接超时（原生配置）
+```
+
+Redisson 高级配置（可选，原生没有的功能）：
+
+```yaml
+thinkboot:
+  redis:
+    redisson:
+      mode: single                    # single/cluster/sentinel
+      connection-pool-size: 64        # 连接池大小
+      connection-minimum-idle-size: 10 # 最小空闲连接
+      timeout: 3000                   # 超时时间（毫秒）
+      # 集群模式节点列表
+      cluster:
+        node-addresses:
+          - redis://192.168.1.100:6379
+          - redis://192.168.1.101:6379
+```
 
 #### 基本操作
 
@@ -1204,7 +1263,7 @@ spring:
       max-active: 20
       max-wait: 60000
 
-  # Redis
+  # Redis（使用原生配置）
   data:
     redis:
       host: localhost
@@ -1212,6 +1271,10 @@ spring:
       password:
       database: 0
       timeout: 10000ms
+      # 哨兵模式配置（如需使用哨兵）
+      # sentinel:
+      #   master: mymaster
+      #   nodes: 192.168.1.100:26379,192.168.1.101:26379,192.168.1.102:26379
 
   # Nacos（微服务场景）
   cloud:
@@ -1223,6 +1286,13 @@ spring:
         server-addr: localhost:8848
         namespace: dev
         file-extension: yml
+    
+    # Sentinel（使用原生配置）
+    alibaba:
+      sentinel:
+        transport:
+          dashboard: localhost:8080
+        eager: true
 
 # MyBatis-Plus
 mybatis-plus:
@@ -1267,21 +1337,38 @@ thinkboot:
         - /swagger-resources/**
         - /v3/api-docs/**
 
-  # Redis/Redisson
+  # Redis/Redisson（使用 spring.redis.* 原生配置）
+  # Redis 基础配置（原生）
   redis:
+    host: localhost
+    port: 6379
+    password:
+    database: 0
+  
+  # Redisson 高级配置（框架增强，原生没有的）
     redisson:
       mode: single                    # single/cluster/sentinel
-      address: redis://localhost:6379
-      password:
-      database: 0
-      timeout: 3000
+      # 集群模式节点列表（仅 cluster/sentinel 模式需要）
+      # cluster:
+      #   node-addresses:
+      #     - redis://192.168.1.100:6379
+      #     - redis://192.168.1.101:6379
+      #     - redis://192.168.1.102:6379
+      # 连接池配置
       connection-pool-size: 64
+      connection-minimum-idle-size: 10
+      timeout: 3000
 
-  # Sentinel
+  # Sentinel（使用原生配置，仅需配置 Nacos 数据源增强）
   sentinel:
-    enabled: false
-    dashboard: localhost:8080
-    eager: true
+    datasource:
+      nacos:
+        enabled: false
+        # server-addr: localhost:8848
+        # namespace: dev
+        # group-id: SENTINEL_GROUP
+        # data-id: your-service-flow-rules
+        # rule-type: flow
 ```
 
 ---
