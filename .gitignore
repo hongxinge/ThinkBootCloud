@@ -20,3 +20,6 @@ Thumbs.db
 
 # Internal promotional materials
 promotion/
+
+# Local test credentials (do not commit)
+本地测试资料.txt

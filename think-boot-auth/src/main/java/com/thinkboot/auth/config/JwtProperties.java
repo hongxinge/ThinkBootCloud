@@ -3,7 +3,6 @@ package com.thinkboot.auth.config;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 
@@ -16,7 +15,6 @@ import java.util.List;
  * - 微服务拦截器会识别内部调用标记，跳过 JWT 验证
  */
 @Data
-@Component
 @ConfigurationProperties(prefix = "thinkboot.auth.jwt")
 public class JwtProperties {
 
